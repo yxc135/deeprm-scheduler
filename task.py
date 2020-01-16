@@ -6,9 +6,39 @@ import random
 class Task(object):
     """Task"""
     def __init__(self, resources, duration, label):
+        self.resource_dimension = len(resources)
         self.resources = resources
         self.duration = duration
         self.label = label
+
+    def __repr__(self):
+        return 'Task(resources={0}, duration={1}, label={2})'.format(self.resources, self.duration, self.label)
+
+def load_tasks():
+    """load tasks from conf/tasks.csv"""
+    tasks = []
+    with open('conf/tasks.csv', 'r') as fr:
+        resource_indices = []
+        duration_index = 0
+        label_index = 0
+        line = fr.readline()
+        parts = line.strip().split(',')
+        for i in range(0, len(parts)):
+            if parts[i].strip().startswith('resource'):
+                resource_indices.append(i)
+            if parts[i].strip() == 'duration':
+                duration_index = i
+            if parts[i].strip() == 'label':
+                label_index = i
+        line = fr.readline()
+        while line:
+            parts = line.strip().split(',')
+            resources = []
+            for index in resource_indices:
+                resources.append(int(parts[index]))
+            tasks.append(Task(resources, int(parts[duration_index]), parts[label_index]))
+            line = fr.readline()
+    return tasks
 
 def generate_tasks():
     """generate tasks according to conf/task.pattern.conf.json"""
