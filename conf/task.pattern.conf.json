@@ -1,0 +1,112 @@
+[
+  {
+    "description": "small tasks",
+    "batch_size": 100,
+    "resource_range": [
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      },
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      },
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      }
+    ],
+    "duration_range": {
+      "lowerLimit": 1,
+      "upperLimit": 5
+    }
+  },
+  {
+    "description": "small tasks with skewed resource",
+    "batch_size": 100,
+    "resource_range": [
+      {
+        "lowerLimit": 51,
+        "upperLimit": 60
+      },
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      },
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      }
+    ],
+    "duration_range": {
+      "lowerLimit": 1,
+      "upperLimit": 5
+    }
+  },
+  {
+    "description": "small tasks with skewed resource",
+    "batch_size": 100,
+    "resource_range": [
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      },
+      {
+        "lowerLimit": 51,
+        "upperLimit": 60
+      },
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      }
+    ],
+    "duration_range": {
+      "lowerLimit": 1,
+      "upperLimit": 5
+    }
+  },
+  {
+    "description": "small tasks with skewed resource",
+    "batch_size": 100,
+    "resource_range": [
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      },
+      {
+        "lowerLimit": 1,
+        "upperLimit": 10
+      },
+      {
+        "lowerLimit": 51,
+        "upperLimit": 60
+      }
+    ],
+    "duration_range": {
+      "lowerLimit": 1,
+      "upperLimit": 5
+    }
+  },
+  {
+    "description": "large tasks",
+    "batch_size": 100,
+    "resource_range": [
+      {
+        "lowerLimit": 51,
+        "upperLimit": 60
+      },
+      {
+        "lowerLimit": 51,
+        "upperLimit": 60
+      },
+      {
+        "lowerLimit": 51,
+        "upperLimit": 60
+      }
+    ],
+    "duration_range": {
+      "lowerLimit": 11,
+      "upperLimit": 15
+    }
+  }
+]
