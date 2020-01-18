@@ -6,7 +6,6 @@ import random
 class Task(object):
     """Task"""
     def __init__(self, resources, duration, label):
-        self.resource_dimension = len(resources)
         self.resources = resources
         self.duration = duration
         self.label = label
