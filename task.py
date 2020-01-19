@@ -9,6 +9,7 @@ class Task(object):
         self.resources = resources
         self.duration = duration
         self.label = label
+        self.dimension = len(resources)
 
     def __repr__(self):
         return 'Task(resources={0}, duration={1}, label={2})'.format(self.resources, self.duration, self.label)
