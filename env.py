@@ -32,6 +32,20 @@ class Node(object):
             self._state_matrices_capacity[i].pop(0)
             self._state_matrices_capacity[i].append(self.resources[i])
 
+    def summary(self, bg_shape=None):
+        if self.dimension > 0:
+            temp = self._expand(self.state_matrices[0], bg_shape)
+            for i in range(1, self.dimension):
+                temp = np.concatenate((temp, self._expand(self.state_matrices[i], bg_shape)), axis=1)
+            return temp
+        else:
+            return None
+
+    def plot(self, bg_shape=None):
+        if not os.path.exists('__state__'):
+            os.makedirs('__state__')
+        Image.fromarray(self.summary(bg_shape)).save('__state__/{0}.png'.format(self.label))
+
     def _satisfy(self, capacity_matrix, required_resources, required_duration):
         p1 = 0
         p2 = 0
@@ -48,11 +62,22 @@ class Node(object):
         else:
             return -1
 
-    def _occupy(self, state_matrix, state_maxtrix_capacity, required_resource, required_duration, start_time):
+    def _occupy(self, state_matrix, state_matrix_capacity, required_resource, required_duration, start_time):
         for i in range(start_time, start_time+required_duration):
             for j in range(0, required_resource):
-                state_matrix[i, len(state_matrix[i])-state_maxtrix_capacity[i]+j] = 0
-            state_maxtrix_capacity[i] = state_maxtrix_capacity[i] - required_resource
+                state_matrix[i, len(state_matrix[i])-state_matrix_capacity[i]+j] = 0
+            state_matrix_capacity[i] = state_matrix_capacity[i] - required_resource
+
+    def _expand(self, matrix, bg_shape=None):
+        if bg_shape is not None and bg_shape[0] >= matrix.shape[0] and bg_shape[1] >= matrix.shape[1]:
+            temp = matrix
+            if bg_shape[0] > matrix.shape[0]:
+                temp = np.concatenate((temp, np.full((bg_shape[0]-matrix.shape[0], matrix.shape[1]), 255, dtype=np.uint8)), axis=0)
+            if bg_shape[1] > matrix.shape[1]:
+                temp = np.concatenate((temp, np.full((bg_shape[0], bg_shape[1]-matrix.shape[1]), 255, dtype=np.uint8)), axis=1)
+            return temp
+        else:
+            return matrix
 
     def __repr__(self):
         return 'Node(state_matrices={0}, label={1})'.format(self.state_matrices, self.label)
@@ -69,9 +94,7 @@ class Environment(object):
     def plot(self):
         if not os.path.exists('__state__'):
             os.makedirs('__state__')
-        for node in self.nodes:
-            for i in range(0, node.dimension):
-                Image.fromarray(node.state_matrices[i]).save('__state__/{0}_resource{1}.png'.format(node.label, i+1))
+        return
 
     def __repr__(self):
         return 'Environment(nodes={0}, queue={1}, backlog={2})'.format(self.nodes, self.queue, self.backlog)
