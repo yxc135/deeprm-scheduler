@@ -4,7 +4,7 @@ from task import load_tasks
 from env import load_environment
 
 from task import Task
-from env import Node
+from node import Node
 from env import Environment
 
 if __name__ == '__main__':
