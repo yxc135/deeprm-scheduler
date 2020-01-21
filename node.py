@@ -1,4 +1,5 @@
 
+import collections
 import os
 import numpy as np
 from PIL import Image
@@ -44,6 +45,9 @@ class Node(object):
         if not os.path.exists('__state__'):
             os.makedirs('__state__')
         Image.fromarray(self.summary(bg_shape)).save('__state__/{0}.png'.format(self.label))
+
+    def utilization(self):
+        return sum([collections.Counter(matrix.flatten()).get(0, 0) for matrix in self.state_matrices])/sum(self.resources)/self.duration
 
     def _satisfy(self, capacity_matrix, required_resources, required_duration):
         p1 = 0

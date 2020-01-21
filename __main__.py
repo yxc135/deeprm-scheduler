@@ -6,15 +6,20 @@ from env import load_environment
 from task import Task
 from node import Node
 from env import Environment
+from schedule import CompactScheduler
+from schedule import SpreadScheduler
 
 if __name__ == '__main__':
-    node = Node([100,200,300], 20, 'node')
-    node.schedule(Task([30,30,30], 10, 'task1'))
-    node.plot()
-    task = Task([50, 100, 150], 10, 'task')
-    task.plot((1000, 1000))
-    environment = Environment([node], 10, 60)
-    environment.queue.append(task)
-    environment.backlog.append(task)
-    environment.plot()
+    node1 = Node([100,200,300], 20, 'node1')
+    node2 = Node([100,300,300], 20, 'node2')
+    node3 = Node([300,300,300], 20, 'node3')
+    task = Task([10,20,30], 10, 'sampletask')
+    environment = Environment([node1,node2,node3], 10, 60)
+    cs = CompactScheduler()
+    ss = SpreadScheduler()
+    action = ss.schedule(environment, task)
+    while action is not None:
+        print(action)
+        print([n.utilization() for n in environment.nodes])
+        action = ss.schedule(environment, task)
     print('done')
