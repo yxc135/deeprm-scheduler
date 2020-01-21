@@ -14,9 +14,10 @@ if __name__ == '__main__':
     node2 = Node([100,300,300], 20, 'node2')
     node3 = Node([300,300,300], 20, 'node3')
     task = Task([10,20,30], 10, 'sampletask')
-    environment = Environment([node1,node2,node3], 10, 60)
+    load_environment()
     cs = CompactScheduler()
     ss = SpreadScheduler()
+    environment = Environment([node1,node2,node3], 10, 60, cs)
     action = ss.schedule(environment, task)
     while action is not None:
         print(action)

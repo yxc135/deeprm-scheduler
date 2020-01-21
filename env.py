@@ -6,15 +6,25 @@ from PIL import Image
 
 from node import Node
 from task import Task
+from schedule import CompactScheduler
+from schedule import SpreadScheduler
+from schedule import DeepRMScheduler
 
 class Environment(object):
     """Environment"""
-    def __init__(self, nodes, queue_size, backlog_size):
+    def __init__(self, nodes, queue_size, backlog_size, scheduler):
         self.nodes = nodes
         self.queue_size = queue_size
         self.backlog_size = backlog_size
         self.queue = []
         self.backlog = []
+        self.scheduler = scheduler
+
+    def submit(self, tasks):
+        pass
+
+    def timestep(self):
+        pass
 
     def summary(self, bg_shape=None):
         if bg_shape is None:
@@ -64,4 +74,9 @@ def load_environment():
         for node_json in data['nodes']:
             label = label + 1
             nodes.append(Node(node_json['resource_capacity'], node_json['duration_capacity'], 'node' + str(label)))
-        return Environment(nodes, data['queue_size'], data['backlog_size'])
+        if 'CompactScheduler' == data['scheduler']:
+            return Environment(nodes, data['queue_size'], data['backlog_size'], CompactScheduler())
+        elif 'SpreadScheduler' == data['scheduler']:
+            return Environment(nodes, data['queue_size'], data['backlog_size'], SpreadScheduler())
+        else:
+            return Environment(nodes, data['queue_size'], data['backlog_size'], DeepRMScheduler())

@@ -36,3 +36,8 @@ class SpreadScheduler(Scheduler):
                 return Action(task, environment.nodes[pair[0]])
         return None
 
+class DeepRMScheduler(Scheduler):
+    """DeepRM scheduler"""
+    def schedule(self, environment, task):
+        pass
+
