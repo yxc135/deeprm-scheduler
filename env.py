@@ -31,13 +31,8 @@ class Environment(object):
         for node in self.nodes:
             node.timestep()
 
-        actions = []
-        indices = []
-        for i in range(0, len(self.queue)):
-            action = self.scheduler.schedule(self, self.queue[i])
-            if action is not None:
-                actions.append(action)
-                indices.append(i)
+        actions = self.scheduler.schedule(self)
+        indices = [action.task_index for action in actions]
         for i in sorted(indices, reverse=True):
             del self.queue[i]
 
