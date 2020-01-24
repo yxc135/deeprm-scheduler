@@ -6,25 +6,71 @@ from PIL import Image
 
 from node import Node
 from task import Task
+from task import generate_tasks
+from task import load_tasks
 from schedule import CompactScheduler
 from schedule import SpreadScheduler
 from schedule import DeepRMScheduler
 
 class Environment(object):
     """Environment"""
-    def __init__(self, nodes, queue_size, backlog_size, scheduler):
+    def __init__(self, nodes, queue_size, backlog_size, scheduler, task_generator):
         self.nodes = nodes
         self.queue_size = queue_size
         self.backlog_size = backlog_size
         self.queue = []
         self.backlog = []
         self.scheduler = scheduler
-
-    def submit(self, tasks):
-        pass
+        self.task_generator = task_generator
+        self.task_generator_end = False
+        self.timestep_counter = 0
 
     def timestep(self):
-        pass
+        self.timestep_counter = self.timestep_counter + 1
+
+        for node in self.nodes:
+            node.timestep()
+
+        actions = []
+        indices = []
+        for i in range(0, len(self.queue)):
+            action = self.scheduler.schedule(self, self.queue[i])
+            if action is not None:
+                actions.append(action)
+                indices.append(i)
+        for i in sorted(indices, reverse=True):
+            del self.queue[i]
+
+        p_queue = len(self.queue)
+        p_backlog = 0
+        indices = []
+        while p_queue < self.queue_size and p_backlog < len(self.backlog):
+            self.queue.append(self.backlog[p_backlog])
+            indices.append(p_backlog)
+            p_queue = p_queue + 1
+            p_backlog = p_backlog + 1
+        for i in sorted(indices, reverse=True):
+            del self.backlog[i]
+
+        p_backlog = len(self.backlog)
+        while p_backlog < self.backlog_size:
+            new_task = next(self.task_generator, None)
+            if new_task is None:
+                self.task_generator_end = True
+                break
+            else:
+                self.backlog.append(new_task)
+                p_backlog = p_backlog + 1
+
+        return actions
+
+    def terminateMark(self):
+        for node in self.nodes:
+            if node.utilization() > 0:
+                return False
+        if self.queue or self.backlog or not self.task_generator_end:
+            return False
+        return True
 
     def summary(self, bg_shape=None):
         if bg_shape is None:
@@ -60,13 +106,21 @@ class Environment(object):
     def plot(self, bg_shape=None):
         if not os.path.exists('__state__'):
             os.makedirs('__state__')
-        Image.fromarray(self.summary(bg_shape)).save('__state__/environment.png')
+        summary_matrix = self.summary(bg_shape)
+        summary_plot = np.full((summary_matrix.shape[0], summary_matrix.shape[1]), 255, dtype=np.uint8)
+        for row in range(0, summary_matrix.shape[0]):
+            for col in range(0, summary_matrix.shape[1]):
+                summary_plot[row, col] = summary_matrix[row, col]
+        Image.fromarray(summary_plot).save('__state__/environment_{0}.png'.format(self.timestep_counter))
 
     def __repr__(self):
-        return 'Environment(nodes={0}, queue={1}, backlog={2})'.format(self.nodes, self.queue, self.backlog)
+        return 'Environment(timestep_counter={0}, nodes={1}, queue={2}, backlog={3})'.format(self.timestep_counter, self.nodes, self.queue, self.backlog)
 
 def load_environment():
     """load environment from conf/env.conf.json"""
+    generate_tasks()
+    tasks = load_tasks()
+    task_generator = (t for t in tasks)
     with open('conf/env.conf.json', 'r') as fr:
         data = json.load(fr)
         nodes = []
@@ -75,8 +129,8 @@ def load_environment():
             label = label + 1
             nodes.append(Node(node_json['resource_capacity'], node_json['duration_capacity'], 'node' + str(label)))
         if 'CompactScheduler' == data['scheduler']:
-            return Environment(nodes, data['queue_size'], data['backlog_size'], CompactScheduler())
+            return Environment(nodes, data['queue_size'], data['backlog_size'], CompactScheduler(), task_generator)
         elif 'SpreadScheduler' == data['scheduler']:
-            return Environment(nodes, data['queue_size'], data['backlog_size'], SpreadScheduler())
+            return Environment(nodes, data['queue_size'], data['backlog_size'], SpreadScheduler(), task_generator)
         else:
-            return Environment(nodes, data['queue_size'], data['backlog_size'], DeepRMScheduler())
+            return Environment(nodes, data['queue_size'], data['backlog_size'], DeepRMScheduler(), task_generator)
