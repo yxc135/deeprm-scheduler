@@ -45,10 +45,10 @@ class SpreadScheduler(Scheduler):
 class DeepRMScheduler(Scheduler):
     """DeepRM scheduler"""
     def __init__(self, environment):
-        if not os.path.exists('__model__'):
-            os.makedirs('__model__')
-        if os.path.isfile('__model__/deeprm.h5'):
-            self.model = tf.keras.models.load_model('__model__/deeprm.h5')
+        if not os.path.exists('model'):
+            os.makedirs('model')
+        if os.path.isfile('model/deeprm.h5'):
+            self.model = tf.keras.models.load_model('model/deeprm.h5')
         else:
             input_shape = (environment.summary().shape[0], environment.summary().shape[1], 1)
             output_shape = environment.queue_size * len(environment.nodes) + 1
