@@ -87,7 +87,7 @@ class Environment(object):
             empty_summary = Task([0]*dimension, 0, 'empty_task').summary(bg_shape)
             for i in range(len(self.queue), self.queue_size):
                 temp = np.concatenate((temp, empty_summary), axis=1)
-            backlog_summary = empty_summary
+            backlog_summary = Task([0], 0, 'empty_task').summary(bg_shape)
             p_backlog = 0
             p_row = 0
             p_col = 0
@@ -133,4 +133,6 @@ def load_environment():
         elif 'SpreadScheduler' == data['scheduler']:
             return Environment(nodes, data['queue_size'], data['backlog_size'], SpreadScheduler(), task_generator)
         else:
-            return Environment(nodes, data['queue_size'], data['backlog_size'], DeepRMScheduler(), task_generator)
+            environment = Environment(nodes, data['queue_size'], data['backlog_size'], None, task_generator)
+            environment.scheduler = DeepRMScheduler(environment)
+            return environment

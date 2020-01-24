@@ -1,5 +1,11 @@
 
+import os
 from abc import ABC, abstractmethod
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D
 
 class Action(object):
     """Schedule action"""
@@ -38,6 +44,31 @@ class SpreadScheduler(Scheduler):
 
 class DeepRMScheduler(Scheduler):
     """DeepRM scheduler"""
+    def __init__(self, environment):
+        if not os.path.exists('__model__'):
+            os.makedirs('__model__')
+        if os.path.isfile('__model__/deeprm.h5'):
+            self.model = tf.keras.models.load_model('__model__/deeprm.h5')
+        else:
+            input_shape = (environment.summary().shape[0], environment.summary().shape[1], 1)
+            output_shape = environment.queue_size * len(environment.nodes) + 1
+            self.model = Sequential([
+                Conv2D(16, (1, 10), padding='same', activation='relu', input_shape=input_shape),
+                MaxPooling2D(),
+                Dropout(0.2),
+                Conv2D(32, (1, 10), padding='same', activation='relu'),
+                MaxPooling2D(),
+                Dropout(0.2),
+                Flatten(),
+                Dense(512, activation='relu'),
+                Dense(output_shape, activation='softmax')
+            ])
+            self.model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
+
     def schedule(self, environment, task):
         pass
 
