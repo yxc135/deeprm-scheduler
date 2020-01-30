@@ -51,6 +51,80 @@ class SpreadScheduler(Scheduler):
                     break
         return actions
 
+class CNNModel(tf.keras.Model):
+    """CNN Model"""
+    def __init__(self, input_shape, output_shape):
+        super(CNNModel, self).__init__()
+        self.model = Sequential([
+            Conv2D(16, (1, 10), padding='same', activation='relu', input_shape=input_shape),
+            MaxPooling2D(),
+            Dropout(0.2),
+            Conv2D(32, (1, 10), padding='same', activation='relu'),
+            MaxPooling2D(),
+            Dropout(0.2),
+            Flatten(),
+            Dense(512, activation='relu'),
+            Dense(output_shape, activation='softmax')
+        ])
+
+    @tf.function
+    def call(self, input_data):
+        return self.model(input_data)
+
+class DQN(object):
+    """DQN Implementation"""
+    def __int__(self, input_shape, output_shape):
+        self.lr = 0.01
+        self.gamma = 0.99
+        self.batch_size = 32
+        self.min_experiences = 100
+        self.max_experiences = 10000
+        self.optimizer = tf.optimizers.Adam(self.lr)
+        self.num_actions = output_shape
+        self.model = CNNModel(input_shape, output_shape)
+        self.experience = {'s': [], 'a': [], 'r': [], 's2': [], 'done': []}
+
+    def predict(self, input_data):
+        return self.model(input_data)
+
+    @tf.function
+    def train(self, target_model):
+        if len(self.experience['s']) < self.min_experiences:
+            return 0
+        ids = np.random.randint(low=0, high=len(self.experience['s']), size=self.batch_size)
+        states = np.asarray([self.experience['s'][i] for i in ids])
+        actions = np.asarray([self.experience['a'][i] for i in ids])
+        rewards = np.asarray([self.experience['r'][i] for i in ids])
+        states_next = np.asarray([self.experience['s2'][i] for i in ids])
+        dones = np.asarray([self.experience['done'][i] for i in ids])
+        values_next = np.max(target_model.predict(states_next), axis=1)
+        actual_values = np.where(dones, rewards, rewards+self.gamma*values_next)
+        with tf.GradientTape() as tape:
+            predicted_values = tf.math.reduce_sum(self.predict(states) * tf.one_hot(actions, self.num_actions), axis=1)
+            loss = tf.math.reduce_sum(tf.square(actual_values - predicted_values))
+        variables = self.model.trainable_variables
+        gradients = tape.gradient(loss, variables)
+        self.optimizer.apply_gradients(zip(gradients, variables))
+
+    def get_action(self, states, epsilon):
+        if np.random.random() < epsilon:
+            return np.random.choice(self.num_actions)
+        else:
+            return np.argmax(self.predict(states)[0])
+
+    def add_experience(self, exp):
+        if len(self.experience['s']) >= self.max_experiences:
+            for key in self.experience.keys():
+                self.experience[key].pop(0)
+        for key, value in exp.items():
+            self.experience[key].append(value)
+
+    def copy_weights(self, target_model):
+        variables1 = self.model.trainable_variables
+        variables2 = target_model.model.trainable_variables
+        for v1, v2 in zip(variables1, variables2):
+            v1.assign(v2.numpy())
+
 class DeepRMScheduler(Scheduler):
     """DeepRM scheduler"""
     def __init__(self, environment):
