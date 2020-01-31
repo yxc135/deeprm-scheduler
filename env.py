@@ -58,7 +58,15 @@ class Environment(object):
         return True
 
     def reward(self):
-        return 1
+        r = 0
+        for node in self.nodes:
+            if node.scheduled_tasks:
+                r = r + 1/sum([task.duration for task in node.scheduled_tasks])
+        if self.queue:
+            r = r + 1/sum([task.duration for task in self.queue])
+        if self.backlog:
+            r = r + 1/sum([task.duration for task in self.backlog])
+        return r
 
     def summary(self, bg_shape=None):
         if bg_shape is None:

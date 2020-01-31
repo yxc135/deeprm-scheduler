@@ -11,6 +11,8 @@ class Node(object):
         self.duration = duration
         self.label = label
         self.dimension = len(resources)
+        self.timestep_counter = 0
+        self.scheduled_tasks = []
         self.state_matrices = [np.full((duration, resource), 255, dtype=np.uint8) for resource in resources]
         self._state_matrices_capacity = [[resource]*duration for resource in resources]
 
@@ -21,9 +23,11 @@ class Node(object):
         else:
             for i in range(0, task.dimension):
                 self._occupy(self.state_matrices[i], self._state_matrices_capacity[i], task.resources[i], task.duration, start_time)
+            self.scheduled_tasks.append((task, self.timestep_counter+task.duration))
             return True
 
     def timestep(self):
+        self.timestep_counter = self.timestep_counter + 1
         for i in range(0, self.dimension):
             temp = np.delete(self.state_matrices[i], (0), axis=0)
             temp = np.append(temp, np.array([[255 for x in range(0, temp.shape[1])]]), axis=0)
@@ -31,6 +35,12 @@ class Node(object):
         for i in range(0, self.dimension):
             self._state_matrices_capacity[i].pop(0)
             self._state_matrices_capacity[i].append(self.resources[i])
+        indices = []
+        for i in range(0, len(self.scheduled_tasks)):
+            if self.timestep_counter >= self.scheduled_tasks[i][1]:
+                indices.append(i)
+        for i in sorted(indices, reverse=True):
+            del self.scheduled_tasks[i]
 
     def summary(self, bg_shape=None):
         if self.dimension > 0:
