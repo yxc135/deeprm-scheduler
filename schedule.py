@@ -1,4 +1,5 @@
 
+import datatime
 import os
 from abc import ABC, abstractmethod
 
@@ -10,9 +11,7 @@ from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2
 
 class Action(object):
     """Schedule action"""
-    def __init__(self, task_index, node_index, task, node):
-        self.task_index = task_index
-        self.node_index = node_index
+    def __init__(self, task, node):
         self.task = task
         self.node = node
 
@@ -22,54 +21,78 @@ class Action(object):
 class Scheduler(ABC):
     """Scheduler"""
     @abstractmethod
-    def schedule(self, environment):
+    def schedule(self):
         pass
 
 class CompactScheduler(Scheduler):
     """Compact scheduler"""
-    def schedule(self, environment):
+    def __init__(self, environment):
+        self.environment = environment
+
+    def schedule(self):
         actions = []
-        for i_task in range(0, len(environment.queue)):
-            pairs = [(i_node, environment.nodes[i_node].utilization()) for i_node in range(0, len(environment.nodes))]
+        indices = []
+        for i_task in range(0, len(self.environment.queue)):
+            pairs = [(i_node, self.environment.nodes[i_node].utilization()) for i_node in range(0, len(self.environment.nodes))]
             pairs = sorted(pairs, key=lambda pair: pair[1], reverse=True)
             for pair in pairs:
-                if environment.nodes[pair[0]].schedule(environment.queue[i_task]):
-                    actions.append(Action(i_task, pair[0], environment.queue[i_task], environment.nodes[pair[0]]))
+                if self.environment.nodes[pair[0]].schedule(self.environment.queue[i_task]):
+                    actions.append(Action(self.environment.queue[i_task], self.environment.nodes[pair[0]]))
+                    indices.append(i_task)
                     break
+        for i in sorted(indices, reverse=True):
+            del self.environment.queue[i]
+        self.environment.timestep()
         return actions
 
 class SpreadScheduler(Scheduler):
     """Spread scheduler"""
-    def schedule(self, environment):
+    def __init__(self, environment):
+        self.environment = environment
+
+    def schedule(self):
         actions = []
-        for i_task in range(0, len(environment.queue)):
-            pairs = [(i_node, environment.nodes[i_node].utilization()) for i_node in range(0, len(environment.nodes))]
+        indices = []
+        for i_task in range(0, len(self.environment.queue)):
+            pairs = [(i_node, self.environment.nodes[i_node].utilization()) for i_node in range(0, len(self.environment.nodes))]
             pairs = sorted(pairs, key=lambda pair: pair[1])
             for pair in pairs:
-                if environment.nodes[pair[0]].schedule(environment.queue[i_task]):
-                    actions.append(Action(i_task, pair[0], environment.queue[i_task], environment.nodes[pair[0]]))
+                if self.environment.nodes[pair[0]].schedule(self.environment.queue[i_task]):
+                    actions.append(Action(self.environment.queue[i_task], self.environment.nodes[pair[0]]))
+                    indices.append(i_task)
                     break
+        for i in sorted(indices, reverse=True):
+            del self.environment.queue[i]
+        self.environment.timestep()
         return actions
 
 class CNNModel(tf.keras.Model):
     """CNN Model"""
     def __init__(self, input_shape, output_shape):
         super(CNNModel, self).__init__()
-        self.model = Sequential([
-            Conv2D(16, (1, 10), padding='same', activation='relu', input_shape=input_shape),
-            MaxPooling2D(),
-            Dropout(0.2),
-            Conv2D(32, (1, 10), padding='same', activation='relu'),
-            MaxPooling2D(),
-            Dropout(0.2),
-            Flatten(),
-            Dense(512, activation='relu'),
-            Dense(output_shape, activation='softmax')
-        ])
+        if os.path.isfile('__cache__/model/deeprm.h5'):
+            self.model = tf.keras.models.load_model('__cache__/model/deeprm.h5')
+        else:
+            self.model = Sequential([
+                Conv2D(16, (1, 10), padding='same', activation='relu', input_shape=input_shape),
+                MaxPooling2D(),
+                Dropout(0.2),
+                Conv2D(32, (1, 10), padding='same', activation='relu'),
+                MaxPooling2D(),
+                Dropout(0.2),
+                Flatten(),
+                Dense(512, activation='relu'),
+                Dense(output_shape, activation='softmax')
+            ])
 
     @tf.function
     def call(self, input_data):
         return self.model(input_data)
+
+    def save(self):
+        if not os.path.exists('__cache__/model'):
+            os.makedirs('__cache__/model')
+        self.model.save('__cache__/model/deeprm.h5')
 
 class DQN(object):
     """DQN Implementation"""
@@ -88,16 +111,16 @@ class DQN(object):
         return self.model(input_data)
 
     @tf.function
-    def train(self, target_model):
+    def train(self, dqn_target):
         if len(self.experience['s']) < self.min_experiences:
-            return 0
+            return
         ids = np.random.randint(low=0, high=len(self.experience['s']), size=self.batch_size)
         states = np.asarray([self.experience['s'][i] for i in ids])
         actions = np.asarray([self.experience['a'][i] for i in ids])
         rewards = np.asarray([self.experience['r'][i] for i in ids])
         states_next = np.asarray([self.experience['s2'][i] for i in ids])
         dones = np.asarray([self.experience['done'][i] for i in ids])
-        values_next = np.max(target_model.predict(states_next), axis=1)
+        values_next = np.max(dqn_target.predict(states_next), axis=1)
         actual_values = np.where(dones, rewards, rewards+self.gamma*values_next)
         with tf.GradientTape() as tape:
             predicted_values = tf.math.reduce_sum(self.predict(states) * tf.one_hot(actions, self.num_actions), axis=1)
@@ -119,67 +142,124 @@ class DQN(object):
         for key, value in exp.items():
             self.experience[key].append(value)
 
-    def copy_weights(self, target_model):
+    def copy_weights(self, dqn_src):
         variables1 = self.model.trainable_variables
-        variables2 = target_model.model.trainable_variables
+        variables2 = dqn_src.model.trainable_variables
         for v1, v2 in zip(variables1, variables2):
             v1.assign(v2.numpy())
+
+    def save_weights(self):
+        self.model.save()
+
+class DeepRMTrainer(object):
+    """DeepRM Trainer"""
+    def __init__(self, environment):
+        self.episodes = 10000
+        self.copy_steps = 32
+        self.save_steps = 512
+        self.epsilon = 0.99
+        self.decay = 0.9999
+        self.min_epsilon = 0.1
+        input_shape = (environment.summary().shape[0], environment.summary().shape[1], 1)
+        output_shape = environment.queue_size * len(environment.nodes) + 1
+        self.dqn_train = DQN(input_shape, output_shape)
+        self.dqn_target = DQN(input_shape, output_shape)
+        self.total_rewards = np.empty(self.episodes)
+        self.environment = environment
+        if not os.path.exists('__cache__/summary'):
+            os.makedirs('__cache__/summary')
+        self.summary_writer = tf.summary.create_file_writer('__cache__/summary/dqn-{0}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+
+    def train(self):
+        for i in range(0, self.episodes):
+            self.epsilon = max(self.min_epsilon, self.epsilon*self.decay)
+            self.total_rewards[i] = self.train_episode()
+            with summary_writer.as_default():
+                tf.summary.scalar('Episode Reward', total_rewards[i], step=i)
+            print("Episode {0} Reward {1}".format(i, total_rewards[i]))
+
+    def train_episode(self):
+        rewards = 0
+        step = 0
+        while not self.environment.terminated():
+            observation = self.environment.summary()
+            action_index = self.dqn_train.get_action(observation, self.epsilon)
+            task_index, node_index = self._explain(action_index)
+            if task_index < 0 or node_index < 0:
+                self.environment.timestep()
+                continue
+            scheduled_task = self.environment.queue[task_index]
+            scheduled_node = self.environment.nodes[node_index]
+            scheduled = scheduled_node.schedule(scheduled_task)
+            if not scheduled:
+                self.environment.timestep()
+                continue
+            del self.environment.queue[task_index]
+            prev_observation = observation
+            reward = self.environment.reward()
+            observation = self.environment.summary()
+            rewards = rewards + reward
+            exp = {'s': prev_observation, 'a': action_index, 'r': reward, 's2': observation, 'done': self.environment.terminated()}
+            self.dqn_train.add_experience(exp)
+            self.dqn_train.train(self.dqn_target)
+            step = step + 1
+            if step % self.copy_steps == 0:
+                self.dqn_target.copy_weights(self.dqn_train)
+            if step % self.save_steps == 0:
+                self.dqn_target.save_weights()
+        return rewards
+
+    def _explain(self, action_index):
+        task_limit = self.environment.queue_size
+        node_limit = len(self.environment.nodes)
+        if action_index == task_limit*node_limit:
+            task_index = -1
+            node_index = -1
+        else:
+            task_index = action_index % task_limit
+            node_index = action_index // task_limit
+        if task_index >= len(self.environment.queue):
+            task_index = -1
+            node_index = -1
+        return (task_index, node_index)
 
 class DeepRMScheduler(Scheduler):
     """DeepRM scheduler"""
     def __init__(self, environment):
-        if not os.path.exists('model'):
-            os.makedirs('model')
-        if os.path.isfile('model/deeprm.h5'):
-            self.model = tf.keras.models.load_model('model/deeprm.h5')
-        else:
-            input_shape = (environment.summary().shape[0], environment.summary().shape[1], 1)
-            output_shape = environment.queue_size * len(environment.nodes) + 1
-            self.model = Sequential([
-                Conv2D(16, (1, 10), padding='same', activation='relu', input_shape=input_shape),
-                MaxPooling2D(),
-                Dropout(0.2),
-                Conv2D(32, (1, 10), padding='same', activation='relu'),
-                MaxPooling2D(),
-                Dropout(0.2),
-                Flatten(),
-                Dense(512, activation='relu'),
-                Dense(output_shape, activation='softmax')
-            ])
-            self.model.compile(
-                optimizer='adam',
-                loss='categorical_crossentropy',
-                metrics=['accuracy']
-            )
+        input_shape = (environment.summary().shape[0], environment.summary().shape[1], 1)
+        output_shape = environment.queue_size * len(environment.nodes) + 1
+        self.dqn_train = DQN(input_shape, output_shape)
+        self.environment = environment
 
-    def schedule(self, environment):
-        summary = environment.summary()
-        probs = self.model.predict(np.array([summary.reshape(summary.shape[0], summary.shape[1], 1)]))[0]
-        action_probs = []
-        n_task = environment.queue_size
-        n_node = len(environment.nodes)
-        for i in range(0, len(probs)):
-            if i == n_task*n_node:
-                action_probs.append((None, probs[i]))
-            else:
-                i_task = i % n_task
-                i_node = i // n_task
-                action_probs.append((Action(i_task, i_node, None, None), probs[i]))
-        action_probs = sorted(action_probs, key=lambda action_prob: action_prob[1], reverse=True)
-
+    def schedule(self):
         actions = []
-        scheduled_tasks = set()
-        for action_prob in action_probs:
-            if action_prob[0] is None:
+        while True:
+            observation = self.environment.summary()
+            action_index = self.dqn_train.get_action(observation, 0)
+            task_index, node_index = self._explain(action_index)
+            if task_index < 0 or node_index < 0:
+               break
+            scheduled_task = self.environment.queue[task_index]
+            scheduled_node = self.environment.nodes[node_index]
+            scheduled = scheduled_node.schedule(scheduled_task)
+            if not scheduled:
                 break
-            if action_prob[0].task_index >= len(environment.queue) or action_prob[0].task_index in scheduled_tasks:
-                continue
-            action = Action(
-                action_prob[0].task_index, action_prob[0].node_index,
-                environment.queue[action_prob[0].task_index], environment.nodes[action_prob[0].node_index]
-            )
-            if action.node.schedule(action.task):
-                actions.append(action)
-                scheduled_tasks.add(action.task_index)
+            del self.environment.queue[task_index]
+            actions.append(Action(scheduled_task, scheduled_node))
+        self.environment.timestep()
         return actions
+
+    def _explain(self, action_index):
+        task_limit = self.environment.queue_size
+        node_limit = len(self.environment.nodes)
+        if action_index == task_limit*node_limit:
+            task_index = -1
+            node_index = -1
+        else:
+            task_index = action_index % task_limit
+            node_index = action_index // task_limit
+        if task_index >= len(self.environment.queue):
+            task_index = -1
+            node_index = -1
+        return (task_index, node_index)
 

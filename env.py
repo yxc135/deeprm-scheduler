@@ -6,35 +6,27 @@ from PIL import Image
 
 from node import Node
 from task import Task
-from task import generate_tasks
-from task import load_tasks
 from schedule import CompactScheduler
 from schedule import SpreadScheduler
 from schedule import DeepRMScheduler
 
 class Environment(object):
     """Environment"""
-    def __init__(self, nodes, queue_size, backlog_size, scheduler, task_generator):
+    def __init__(self, nodes, queue_size, backlog_size, task_generator):
         self.nodes = nodes
         self.queue_size = queue_size
         self.backlog_size = backlog_size
         self.queue = []
         self.backlog = []
-        self.scheduler = scheduler
-        self.task_generator = task_generator
-        self.task_generator_end = False
         self.timestep_counter = 0
+        self._task_generator = task_generator
+        self._task_generator_end = False
 
     def timestep(self):
         self.timestep_counter = self.timestep_counter + 1
 
         for node in self.nodes:
             node.timestep()
-
-        actions = self.scheduler.schedule(self)
-        indices = [action.task_index for action in actions]
-        for i in sorted(indices, reverse=True):
-            del self.queue[i]
 
         p_queue = len(self.queue)
         p_backlog = 0
@@ -49,23 +41,24 @@ class Environment(object):
 
         p_backlog = len(self.backlog)
         while p_backlog < self.backlog_size:
-            new_task = next(self.task_generator, None)
+            new_task = next(self._task_generator, None)
             if new_task is None:
-                self.task_generator_end = True
+                self._task_generator_end = True
                 break
             else:
                 self.backlog.append(new_task)
                 p_backlog = p_backlog + 1
 
-        return actions
-
-    def terminateMark(self):
+    def terminated(self):
         for node in self.nodes:
             if node.utilization() > 0:
                 return False
-        if self.queue or self.backlog or not self.task_generator_end:
+        if self.queue or self.backlog or not self._task_generator_end:
             return False
         return True
+
+    def reward(self):
+        return 1
 
     def summary(self, bg_shape=None):
         if bg_shape is None:
@@ -99,22 +92,21 @@ class Environment(object):
             return None
 
     def plot(self, bg_shape=None):
-        if not os.path.exists('__state__'):
-            os.makedirs('__state__')
+        if not os.path.exists('__cache__/state'):
+            os.makedirs('__cache__/state')
         summary_matrix = self.summary(bg_shape)
         summary_plot = np.full((summary_matrix.shape[0], summary_matrix.shape[1]), 255, dtype=np.uint8)
         for row in range(0, summary_matrix.shape[0]):
             for col in range(0, summary_matrix.shape[1]):
                 summary_plot[row, col] = summary_matrix[row, col]
-        Image.fromarray(summary_plot).save('__state__/environment_{0}.png'.format(self.timestep_counter))
+        Image.fromarray(summary_plot).save('__cache__/state/environment_{0}.png'.format(self.timestep_counter))
 
     def __repr__(self):
         return 'Environment(timestep_counter={0}, nodes={1}, queue={2}, backlog={3})'.format(self.timestep_counter, self.nodes, self.queue, self.backlog)
 
-def load_environment():
-    """load environment from conf/env.conf.json"""
-    generate_tasks()
-    tasks = load_tasks()
+def load():
+    """load environment and scheduler from conf/env.conf.json"""
+    tasks = _load_tasks()
     task_generator = (t for t in tasks)
     with open('conf/env.conf.json', 'r') as fr:
         data = json.load(fr)
@@ -123,11 +115,60 @@ def load_environment():
         for node_json in data['nodes']:
             label = label + 1
             nodes.append(Node(node_json['resource_capacity'], node_json['duration_capacity'], 'node' + str(label)))
+        environment = Environment(nodes, data['queue_size'], data['backlog_size'], task_generator)
+        environment.timestep()
         if 'CompactScheduler' == data['scheduler']:
-            return Environment(nodes, data['queue_size'], data['backlog_size'], CompactScheduler(), task_generator)
+            return (environment, CompactScheduler())
         elif 'SpreadScheduler' == data['scheduler']:
-            return Environment(nodes, data['queue_size'], data['backlog_size'], SpreadScheduler(), task_generator)
+            return (environment, SpreadScheduler())
         else:
-            environment = Environment(nodes, data['queue_size'], data['backlog_size'], None, task_generator)
-            environment.scheduler = DeepRMScheduler(environment)
-            return environment
+            return (environment, DeepRMScheduler(environment))
+
+def _load_tasks():
+    """load tasks from __cache__/tasks.csv"""
+    _generate_tasks()
+    tasks = []
+    with open('__cache__/tasks.csv', 'r') as fr:
+        resource_indices = []
+        duration_index = 0
+        label_index = 0
+        line = fr.readline()
+        parts = line.strip().split(',')
+        for i in range(0, len(parts)):
+            if parts[i].strip().startswith('resource'):
+                resource_indices.append(i)
+            if parts[i].strip() == 'duration':
+                duration_index = i
+            if parts[i].strip() == 'label':
+                label_index = i
+        line = fr.readline()
+        while line:
+            parts = line.strip().split(',')
+            resources = []
+            for index in resource_indices:
+                resources.append(int(parts[index]))
+            tasks.append(Task(resources, int(parts[duration_index]), parts[label_index]))
+            line = fr.readline()
+    return tasks
+
+def _generate_tasks():
+    """generate tasks according to conf/task.pattern.conf.json"""
+    if not os.path.exists('__cache__'):
+        os.makedirs('__cache__')
+    if os.path.isfile('__cache__/tasks.csv'):
+        return
+    with open('conf/task.pattern.conf.json', 'r') as fr, open('__cache__/tasks.csv', 'w') as fw:
+        data = json.load(fr)
+        if len(data) > 0:
+            for i in range(0, len(data[0]['resource_range'])):
+                fw.write('resource' + str(i+1) + ',')
+            fw.write('duration,label' + '\n')
+        label = 0
+        for task_pattern in data:
+            for i in range(0, task_pattern['batch_size']):
+                label = label + 1
+                resources = []
+                duration = str(random.randint(task_pattern['duration_range']['lowerLimit'], task_pattern['duration_range']['upperLimit']))
+                for j in range(0, len(task_pattern['resource_range'])):
+                    resources.append(str(random.randint(task_pattern['resource_range'][j]['lowerLimit'], task_pattern['resource_range'][j]['upperLimit'])))
+                fw.write(','.join(resources) + ',' + duration +  ',' + 'task' + str(label) + '\n')
