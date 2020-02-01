@@ -1,5 +1,5 @@
 
-import datatime
+import datetime
 import os
 from abc import ABC, abstractmethod
 
@@ -8,6 +8,8 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D
+
+import env
 
 class Action(object):
     """Schedule action"""
@@ -74,14 +76,11 @@ class CNNModel(tf.keras.Model):
             self.model = tf.keras.models.load_model('__cache__/model/deeprm.h5')
         else:
             self.model = Sequential([
-                Conv2D(16, (1, 10), padding='same', activation='relu', input_shape=input_shape),
-                MaxPooling2D(),
-                Dropout(0.2),
-                Conv2D(32, (1, 10), padding='same', activation='relu'),
+                Conv2D(16, (3, 3), padding='same', activation='relu', input_shape=input_shape),
                 MaxPooling2D(),
                 Dropout(0.2),
                 Flatten(),
-                Dense(512, activation='relu'),
+                Dense(256, activation='relu'),
                 Dense(output_shape, activation='softmax')
             ])
 
@@ -96,7 +95,7 @@ class CNNModel(tf.keras.Model):
 
 class DQN(object):
     """DQN Implementation"""
-    def __int__(self, input_shape, output_shape):
+    def __init__(self, input_shape, output_shape):
         self.lr = 0.01
         self.gamma = 0.99
         self.batch_size = 32
@@ -108,7 +107,7 @@ class DQN(object):
         self.experience = {'s': [], 'a': [], 'r': [], 's2': [], 'done': []}
 
     def predict(self, input_data):
-        return self.model(input_data)
+        return self.model(input_data.astype('float32').reshape(input_data.shape[0], input_data.shape[1], input_data.shape[2], 1))
 
     @tf.function
     def train(self, dqn_target):
@@ -133,7 +132,7 @@ class DQN(object):
         if np.random.random() < epsilon:
             return np.random.choice(self.num_actions)
         else:
-            return np.argmax(self.predict(states)[0])
+            return np.argmax(self.predict(np.array([states]))[0])
 
     def add_experience(self, exp):
         if len(self.experience['s']) >= self.max_experiences:
@@ -174,13 +173,14 @@ class DeepRMTrainer(object):
         for i in range(0, self.episodes):
             self.epsilon = max(self.min_epsilon, self.epsilon*self.decay)
             self.total_rewards[i] = self.train_episode()
-            with summary_writer.as_default():
-                tf.summary.scalar('Episode Reward', total_rewards[i], step=i)
-            print("Episode {0} Reward {1}".format(i, total_rewards[i]))
+            with self.summary_writer.as_default():
+                tf.summary.scalar('Episode Reward', self.total_rewards[i], step=i)
+            print("Episode {0} Reward {1}".format(i, self.total_rewards[i]))
 
     def train_episode(self):
         rewards = 0
         step = 0
+        self.environment, _ = env.load()
         while not self.environment.terminated():
             observation = self.environment.summary()
             action_index = self.dqn_train.get_action(observation, self.epsilon)

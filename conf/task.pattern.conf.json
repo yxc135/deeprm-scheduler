@@ -5,20 +5,20 @@
     "resource_range": [
       {
         "lowerLimit": 1,
-        "upperLimit": 10
+        "upperLimit": 3
       },
       {
         "lowerLimit": 1,
-        "upperLimit": 10
+        "upperLimit": 3
       },
       {
         "lowerLimit": 1,
-        "upperLimit": 10
+        "upperLimit": 3
       }
     ],
     "duration_range": {
       "lowerLimit": 1,
-      "upperLimit": 5
+      "upperLimit": 3
     }
   },
   {
@@ -26,43 +26,21 @@
     "batch_size": 100,
     "resource_range": [
       {
-        "lowerLimit": 51,
-        "upperLimit": 60
+        "lowerLimit": 6,
+        "upperLimit": 8
       },
       {
         "lowerLimit": 1,
-        "upperLimit": 10
+        "upperLimit": 3
       },
       {
         "lowerLimit": 1,
-        "upperLimit": 10
+        "upperLimit": 3
       }
     ],
     "duration_range": {
       "lowerLimit": 1,
-      "upperLimit": 5
-    }
-  },
-  {
-    "description": "small tasks with skewed resource",
-    "batch_size": 100,
-    "resource_range": [
-      {
-        "lowerLimit": 1,
-        "upperLimit": 10
-      },
-      {
-        "lowerLimit": 51,
-        "upperLimit": 60
-      },
-      {
-        "lowerLimit": 1,
-        "upperLimit": 10
-      }
-    ],
-    "duration_range": {
-      "lowerLimit": 1,
-      "upperLimit": 5
+      "upperLimit": 3
     }
   },
   {
@@ -71,20 +49,42 @@
     "resource_range": [
       {
         "lowerLimit": 1,
-        "upperLimit": 10
+        "upperLimit": 3
+      },
+      {
+        "lowerLimit": 6,
+        "upperLimit": 8
       },
       {
         "lowerLimit": 1,
-        "upperLimit": 10
-      },
-      {
-        "lowerLimit": 51,
-        "upperLimit": 60
+        "upperLimit": 3
       }
     ],
     "duration_range": {
       "lowerLimit": 1,
-      "upperLimit": 5
+      "upperLimit": 3
+    }
+  },
+  {
+    "description": "small tasks with skewed resource",
+    "batch_size": 100,
+    "resource_range": [
+      {
+        "lowerLimit": 1,
+        "upperLimit": 3
+      },
+      {
+        "lowerLimit": 1,
+        "upperLimit": 3
+      },
+      {
+        "lowerLimit": 6,
+        "upperLimit": 8
+      }
+    ],
+    "duration_range": {
+      "lowerLimit": 1,
+      "upperLimit": 3
     }
   },
   {
@@ -92,21 +92,21 @@
     "batch_size": 100,
     "resource_range": [
       {
-        "lowerLimit": 51,
-        "upperLimit": 60
+        "lowerLimit": 6,
+        "upperLimit": 8
       },
       {
-        "lowerLimit": 51,
-        "upperLimit": 60
+        "lowerLimit": 6,
+        "upperLimit": 8
       },
       {
-        "lowerLimit": 51,
-        "upperLimit": 60
+        "lowerLimit": 6,
+        "upperLimit": 8
       }
     ],
     "duration_range": {
-      "lowerLimit": 11,
-      "upperLimit": 15
+      "lowerLimit": 6,
+      "upperLimit": 8
     }
   }
 ]

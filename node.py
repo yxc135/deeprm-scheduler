@@ -51,11 +51,6 @@ class Node(object):
         else:
             return None
 
-    def plot(self, bg_shape=None):
-        if not os.path.exists('__cache__/state'):
-            os.makedirs('__cache__/state')
-        Image.fromarray(self.summary(bg_shape)).save('__cache__/state/{0}.png'.format(self.label))
-
     def utilization(self):
         return sum([collections.Counter(matrix.flatten()).get(0, 0) for matrix in self.state_matrices])/sum(self.resources)/self.duration
 

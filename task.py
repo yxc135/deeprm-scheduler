@@ -27,13 +27,6 @@ class Task(object):
         else:
             return None
 
-    def plot(self, bg_shape=None):
-        if bg_shape is None:
-            bg_shape = (self.duration, max(self.resources))
-        if not os.path.exists('__cache__/state'):
-            os.makedirs('__cache__/state')
-        Image.fromarray(self.summary(bg_shape)).save('__cache__/state/{0}.png'.format(self.label))
-
     def __repr__(self):
         return 'Task(resources={0}, duration={1}, label={2})'.format(self.resources, self.duration, self.label)
 

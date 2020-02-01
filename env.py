@@ -1,5 +1,6 @@
 
 import os
+import random
 import json
 import numpy as np
 from PIL import Image
@@ -61,7 +62,7 @@ class Environment(object):
         r = 0
         for node in self.nodes:
             if node.scheduled_tasks:
-                r = r + 1/sum([task.duration for task in node.scheduled_tasks])
+                r = r + 1/sum([task[0].duration for task in node.scheduled_tasks])
         if self.queue:
             r = r + 1/sum([task.duration for task in self.queue])
         if self.backlog:
@@ -126,9 +127,9 @@ def load():
         environment = Environment(nodes, data['queue_size'], data['backlog_size'], task_generator)
         environment.timestep()
         if 'CompactScheduler' == data['scheduler']:
-            return (environment, CompactScheduler())
+            return (environment, CompactScheduler(environment))
         elif 'SpreadScheduler' == data['scheduler']:
-            return (environment, SpreadScheduler())
+            return (environment, SpreadScheduler(environment))
         else:
             return (environment, DeepRMScheduler(environment))
 
