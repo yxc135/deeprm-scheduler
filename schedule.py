@@ -225,7 +225,9 @@ class DeepRMTrainer(object):
 
 class DeepRMScheduler(Scheduler):
     """DeepRM scheduler"""
-    def __init__(self, environment):
+    def __init__(self, environment, train=True):
+        if train:
+            DeepRMTrainer(environment).train()
         input_shape = (environment.summary().shape[0], environment.summary().shape[1], 1)
         output_shape = environment.queue_size * len(environment.nodes) + 1
         self.dqn_train = DQN(input_shape, output_shape)

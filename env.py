@@ -131,7 +131,7 @@ def load():
         elif 'SpreadScheduler' == data['scheduler']:
             return (environment, SpreadScheduler(environment))
         else:
-            return (environment, DeepRMScheduler(environment))
+            return (environment, DeepRMScheduler(environment, data['train']))
 
 def _load_tasks():
     """load tasks from __cache__/tasks.csv"""
