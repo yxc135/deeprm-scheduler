@@ -180,7 +180,7 @@ class DeepRMTrainer(object):
     def train_episode(self):
         rewards = 0
         step = 0
-        self.environment, _ = env.load()
+        self.environment, _ = env.load(load_scheduler=False)
         while not self.environment.terminated():
             observation = self.environment.summary()
             action_index = self.dqn_train.get_action(observation, self.epsilon)

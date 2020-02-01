@@ -113,7 +113,7 @@ class Environment(object):
     def __repr__(self):
         return 'Environment(timestep_counter={0}, nodes={1}, queue={2}, backlog={3})'.format(self.timestep_counter, self.nodes, self.queue, self.backlog)
 
-def load():
+def load(load_environment=True, load_scheduler=True):
     """load environment and scheduler from conf/env.conf.json"""
     tasks = _load_tasks()
     task_generator = (t for t in tasks)
@@ -124,14 +124,19 @@ def load():
         for node_json in data['nodes']:
             label = label + 1
             nodes.append(Node(node_json['resource_capacity'], node_json['duration_capacity'], 'node' + str(label)))
-        environment = Environment(nodes, data['queue_size'], data['backlog_size'], task_generator)
-        environment.timestep()
-        if 'CompactScheduler' == data['scheduler']:
-            return (environment, CompactScheduler(environment))
-        elif 'SpreadScheduler' == data['scheduler']:
-            return (environment, SpreadScheduler(environment))
-        else:
-            return (environment, DeepRMScheduler(environment, data['train']))
+        environment = None
+        scheduler = None
+        if load_environment:
+            environment = Environment(nodes, data['queue_size'], data['backlog_size'], task_generator)
+            environment.timestep()
+        if load_scheduler:
+            if 'CompactScheduler' == data['scheduler']:
+                scheduler = CompactScheduler(environment)
+            elif 'SpreadScheduler' == data['scheduler']:
+                scheduler = SpreadScheduler(environment)
+            else:
+                scheduler = DeepRMScheduler(environment, data['train'])
+        return (environment, scheduler)
 
 def _load_tasks():
     """load tasks from __cache__/tasks.csv"""
