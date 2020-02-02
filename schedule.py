@@ -218,8 +218,9 @@ class DeepRMTrainer(object):
             self.epsilon = max(self.min_epsilon, self.epsilon*self.decay)
             self.total_rewards[i] = self.train_episode()
             with self.summary_writer.as_default():
-                tf.summary.scalar('Episode Reward', self.total_rewards[i], step=i)
-            print("Episode {0} Reward {1}".format(i, self.total_rewards[i]))
+                # job slowdown is the negative total reward
+                tf.summary.scalar('Episode Job Slowdown', -self.total_rewards[i], step=i)
+            print('Episode {0} Job Slowdown {1}'.format(i, -self.total_rewards[i]))
 
     def train_episode(self):
         """Train process of single episode."""
