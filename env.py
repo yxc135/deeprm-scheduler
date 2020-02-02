@@ -77,7 +77,7 @@ class Environment(object):
             r += 1/sum([task.duration for task in self.queue])
         if self.backlog:
             r += 1/sum([task.duration for task in self.backlog])
-        return r
+        return -r
 
     def summary(self, bg_shape=None):
         """State representation."""
