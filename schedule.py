@@ -104,7 +104,7 @@ class CNNModel(tf.keras.Model):
                 Dropout(0.2),
                 Flatten(),
                 Dense(256, activation='relu'),
-                Dense(output_shape, activation='softmax')
+                Dense(output_shape, activation='linear')
             ])
 
     @tf.function
@@ -200,7 +200,7 @@ class DeepRMTrainer(object):
         self.copy_steps = 32
         self.save_steps = 32
         self.epsilon = 0.99
-        self.decay = 0.9999
+        self.decay = 0.99
         self.min_epsilon = 0.1
         input_shape = (environment.summary().shape[0], environment.summary().shape[1], 1)
         output_shape = environment.queue_size * len(environment.nodes) + 1
